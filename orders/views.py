@@ -3,23 +3,24 @@ from .models import Order
 from .forms import OrderForm
 from .services import OrderService
 from django.db.models import Q
-from django.http import HttpResponseBadRequest
 from django.core.exceptions import ValidationError
+from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
+from typing import List, Dict, Any, Optional
 
 
 # Добавление заказа
-def add_order(request):
-    form = None
+def add_order(request: HttpRequest) -> HttpResponse:
+    form: Optional[OrderForm] = None
 
     if request.method == 'POST':
         form = OrderForm(request.POST)
         if form.is_valid():
-            table_number = form.cleaned_data['table_number']
-            status = form.cleaned_data['status']
-            items_input = form.cleaned_data['items']
+            table_number: int = form.cleaned_data['table_number']
+            status: str = form.cleaned_data['status']
+            items_input: str = form.cleaned_data['items']
 
             try:
-                items = []
+                items: List[Dict[str, Any]] = []
                 for item_str in items_input.split(','):
                     name, price = item_str.split('-')
                     items.append({
@@ -30,7 +31,7 @@ def add_order(request):
                 return HttpResponseBadRequest("Некорректный формат ввода блюд и цен.")
 
             try:
-                order = Order.objects.create(
+                order: Order = Order.objects.create(
                     table_number=table_number,
                     items=items,
                     status=status
@@ -59,11 +60,11 @@ def update_order(request, order_id):
 
 
 # Удаление заказа
-def delete_order(request, order_id):
+def delete_order(request: HttpRequest, order_id: int) -> HttpResponse:
     if request.method == 'POST':
         OrderService.delete_order(order_id)
         return redirect('order_list')
-    order = get_object_or_404(Order, id=order_id)
+    order: Order = get_object_or_404(Order, id=order_id)
     return render(request, 'orders/order_delete_confirm.html', {'order': order})
 
 
@@ -93,7 +94,7 @@ def search_order(request):
         status_map = {v: k for k, v in dict(STATUS_CHOICES).items()}
 
         if search_query in status_map:
-            search_query_status = status_map[search_query]  # Это будет английский статус
+            search_query_status = status_map[search_query]
             orders = Order.objects.filter(
                 Q(table_number__icontains=search_query) | Q(status=search_query_status)
             )
